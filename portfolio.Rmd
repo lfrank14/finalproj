@@ -1,0 +1,429 @@
+---
+title: "Final Project Portfolio"
+author: "Lea Frank"
+date: "2/23/2019"
+output:
+  html_document:
+    theme: spacelab
+    toc: true
+    toc_float: true
+    code_folding: hide
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# I created a package that includes the data, in order to access you'll need to 
+# install the package using the commented code below. 
+#devtools::install("lurrdataviz")
+
+library(lurrdatviz)
+library(tidyverse)
+library(ggthemes)
+library(colorblindr)
+library(paletteer)
+
+```
+
+
+### Data Summary
+
+**FACAT**: An incidental category learning task. Participants studied face-name associations, with the surname indicatnig the underlying cateogry structure. Representational similarity analysis (RSA) was used to test if certain brain regions (anterior hippocampus, posterior hippocampus, and ventromedial prefrontal cortex/medial orbitofrontal cortex) were representing the unique faces (item representation) or the underlying category structure (category representations). 
+
+**DICAT**: A feedback-based category learning task. Participants learned to categorize novel cartoon "animals" into the appropriate categories (e.g. febbles and badoons). During test, participants had to categorize old and new animals. Categorization accuracy for new animals measured the participants ability to generalize what they learned to new experiences. Behavioral models were also used to determine what strategy participants used while categorizing new animals. Under the exemplar approach, participants use previously encountered animals (exemplars) to categorize new ones. Under the prototype approach, participants use an abstract representation (prototype) to categorize new animals.
+
+**AEPET**: An individual differences study that includes a similar task to that of DICAT, just using different cartoon animals. 
+
+I have run some statistics on the data to communicate significant findings, but I did not include them in the html. If you are interested, you can find them in the .rmd file, directly above the associated plot. 
+
+### Figure 1. Category and Item Representations
+
++ Data: FACAT 
++ Figure: Bar plot showing mean strength of item and category representations across different brain regions. 
++ Message: To show that during an incidental category learning, item representations are stronger that category representations.  
++ Audience: NIH study section
++ Notes: We only really care about the strength of each type of representation as it compares to 0. The strength of representation is measured by an effect size, Cohen's d. 
+
+```{r facat_data}
+
+# Labels
+rois <- c("ahip","phip","mofc")
+nrois <- length(rois)
+measures <- c("itemrep","itemrep2","catrep")
+
+# Load data
+facat <- facat
+facat_reps <- facat %>% 
+  select(subnum, contains("_train_")) %>% 
+  filter(subnum < 33) # missing data for most recent subjects
+
+collabels <- colnames(facat_reps[-1])
+
+# Tidy for plotting  
+facat_tidy <- facat_reps %>% 
+  gather(key = "tmp", value = "rep_strength", -1) %>% 
+  separate(col = "tmp", into = c("roi", NA, "rep_type")) %>% 
+  filter(rep_type != "itemrep" &
+           roi != "hip")
+
+# Summarize for plotting
+facat_sum <- facat_tidy %>% 
+  group_by(roi, rep_type) %>% 
+  summarize(m_repstr = mean(rep_strength),
+            se_repstr = se(rep_strength))
+```
+
+```{r fig1_v1_stats, inclue=FALSE}
+# Compare against 0, for reference / annotations
+results <- list()
+for (i in 1:(ncol(facat_reps) - 1)) {
+  results[[i]] <- t.test(facat_reps[i + 1])
+}
+
+pvals <- map(results, function(x)x$p.value)
+sig_reps <- tibble(condition = collabels,
+                   pval = pvals,
+                   is_sig = pvals < .05,
+                   is_marg = pvals < .1)
+```
+
+
+```{r fig1_v1}
+
+ggplot(facat_sum, aes(x = factor(roi, levels = c("ahip","phip","mofc")), 
+                      y = m_repstr, fill = factor(rep_type, levels = c("itemrep2","catrep")))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_hline(yintercept = 0, color = "#343434", alpha = .5) +
+  geom_errorbar(aes(ymin = m_repstr - se_repstr, ymax = m_repstr + se_repstr),
+                 position = position_dodge(width = .9), width = .2, color = "#343434") +
+  theme_minimal(base_size = 16) +
+  #theme_light(base_size = 16) +
+  #scale_fill_OkabeIto(name = NULL, labels = c("Category", "Item")) +
+  scale_fill_paletteer_d(package = "rcartocolor", palette = "Vivid",
+                         name = NULL, labels = c("Item", "Category")) +
+  labs(y = "Cohen's d",
+       x = NULL,
+       caption = "Figure 1. Strength of item and category representations during training") +
+  scale_x_discrete(labels = c("Ant. HIP", "Post. HIP", "VMPFC")) +
+  scale_y_continuous(limits = c(-.015,.035)) +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_line(size = .3),
+        panel.grid.minor.y = element_line(size = .3),
+        legend.position = c(.99, .99), 
+        legend.justification = c("right","top"),
+        axis.text.x = element_text(size = 16, color = "black"),
+        axis.text.y = element_text(color = "black"),
+        plot.caption = element_text(hjust = -1)) +
+  annotate(geom = "text", label = "*", x = .78, y = .03, size = 10)
+
+```
+
+```{r fig1_v2}
+#facat_sum$rep_type <- factor(facat_sum$rep_type, levels = c("itemrep2","catrep"))
+facat_sum$roi <- factor(facat_sum$roi, levels = c("ahip","phip","mofc"),
+                        labels = c("Ant. HIP","Post. HIP","VMPFC"))
+
+ggplot(facat_sum, aes(x = factor(rep_type, levels = c("itemrep2","catrep")), 
+                      y = m_repstr, 
+                      fill = factor(rep_type, levels = c("itemrep2","catrep")))) +
+  geom_bar(stat = "identity") +
+  geom_hline(yintercept = 0, color = "#343434", alpha = .5) +
+  geom_errorbar(aes(ymin = m_repstr - se_repstr, ymax = m_repstr + se_repstr),
+                width = .2, color = "#343434") +
+  facet_wrap(~roi) +
+  #facet_wrap(~factor(roi, levels = c("ahip","phip","mofc"),
+  #                   labels = c("Ant. HIP","Post. HIP","VMPFC"))) +
+  scale_fill_paletteer_d(package = "rcartocolor", palette = "Vivid",
+                         name = NULL, labels = c("Item", "Category")) +
+  #scale_y_continuous(limits = c(-.015, .035)) +
+  #annotate(geom = "text", label = "*", x = .78, y = .03, size = 10) + # it keeps throwing me a weird error if I include this - stupid annotate doesn't work on facet_wraps very well...
+  theme_minimal(base_size = 16) +
+  labs(y = "Cohen's d", x = NULL,
+       caption = "Figure 1. Strength of item and category representations") +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.major.y = element_line(size = .3),
+        panel.grid.minor.y = element_line(size = .3),
+        legend.position = "bottom",
+        plot.caption = element_text(hjust = -.35),
+        axis.text.x = element_blank(),
+        axis.text.y = element_text(color = "black")) 
+```
+
+### Figure 2. Behavioral Measures
+
++ Data: FACAT behavioral test measures
+  ++ Measures for specific memory - recollection of full, first, and surname; recognition of old/new faces (corrected hit rate)
+  ++ Measures for generalized memory - false alarms (recognizing new faces as old), categorization accuracy for new faces, increase in perceptual similarity of faces in the same category from pre to post training
++ Figure: Correlation matrix for the different task measures. 
++ Message: To show that test measures of specific and generalized/gist memory are not related. Also to show that categorization of new faces was more correlated with measures of memory specificity, suggesting participants might have used memory for the unique faces to categoryize new faces (exemplar strategy) rather than a generalized memory for the category (prototype strategy). 
++ Audience: NIH study section
++ Notes: 
+
+```{r fig2_data}
+behav <- facat %>%
+  mutate(behav_cateffect = postpre_mSim_Relevant - postpre_mSim_Irrelevant) %>% 
+  select(catACCnew, behav_cateffect, FA, 
+         CHR, mFirstName, mSurname, mFullName)
+
+zbehav <- scale(behav)
+
+zbehav_corrmat_lwr <- cormat_lower(zbehav, diag = FALSE)
+```
+
+```{r fig2_v1}
+# I like this because it's easier, but the flexibility in how the plot looks is not the same
+# ggcorrplot(behav_cormat, method = "square", type = "lower",
+#            hc.order = TRUE, lab = TRUE, lab_size = 3,
+#            outline.color = "white", colors = c("#1A66E9","white","#E9481A"))
+
+ggplot(zbehav_corrmat_lwr,
+       aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile(color = "white", alpha = .9) +
+  geom_text(aes(label = round(value,2)), size = 4) +
+  scale_fill_gradient2(low = "#00836B", mid = "white", high = "#CC7400",
+                       name = "Pearson \nCorrelation") +
+  coord_fixed() +
+  scale_y_discrete(labels = c("Categorization", "Perceptual Similarity", "False Alarms",
+                              "Corrected Hit Rate", "First Name", "Surname")) +
+  scale_x_discrete(labels = c("Perceptual Similarity", "False Alarms", "Corrected Hit Rate",
+                              "First Name", "Surname", "Full Name")) +
+  labs(caption = "Figure 2. Correlation matrix of task measures") +
+  theme_minimal(base_size = 14) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.title = element_blank(),
+        legend.justification = "top", 
+        plot.caption = element_text(hjust = 1.4, size = 14))
+  
+  
+
+```
+
+
+### Figure 3. Representations and Behavior
+
++ Data: FACAT
++ Figure: scatter plot between strength of item/category representations in different brain regions and categorization performance
++ Features: color highlighting could be used to identify significant correlations
++ Message: To show that item representations in the VMPFC tracked categorization accuracy for new faces, again suggesting that participants were using an exemplar strategy  
++ Audience: NIH study section
++ Notes: 
+
+#### Version 1: Scatterplot
+
+```{r fig3_data}
+facat_sub <- facat %>% 
+  filter(subnum < 33) %>% 
+  select(subnum, postpre_mSim_Relevant, postpre_mSim_Irrelevant,
+         catACC, catACCnew, catACCold, 
+         CHR, FA, mFirstName, mSurname, mFullName,
+         contains("_train_")) %>% 
+  mutate(behav_cateffect = postpre_mSim_Relevant - postpre_mSim_Irrelevant) %>% 
+  gather(key = "tmp", value = "rep_str", 12:23) %>% 
+  separate(col = "tmp", into = c("roi", NA, "rep_type")) %>%
+  spread(key = "rep_type", value = "rep_str") %>%
+  filter(roi != "hip")
+
+```
+
+```{r fig3_v1_stats, include=FALSE}
+cat_corrs <- list()
+item_corrs <- list()
+for (i in 1:nrois) {
+   tmp <- facat_sub %>% 
+    filter(roi == rois[i]) 
+   cat_corrs[[i]] <- cor.test(tmp$catACCnew, tmp$catrep)
+   item_corrs[[i]] <- cor.test(tmp$catACCnew, tmp$itemrep2)
+}
+
+cat_regress <- list()
+for (i in 1:nrois) {
+  tmp <- facat_sub %>% 
+    filter(roi == rois[i])
+  cat_regress[[i]] <- lm(tmp$catACCnew ~ tmp$catrep + tmp$itemrep2)
+}
+
+map(cat_regress, summary)
+```
+
+
+```{r fig3_v1_data2}
+facat_sub <- facat_sub %>% 
+  select(-itemrep) %>% 
+  gather(key = "rep_type", value = "rep_str", itemrep2:catrep)
+```
+
+```{r fig3_v1, fig.height=4.2, fig.width=10.5}
+facat_sub$roi <- factor(facat_sub$roi, levels = c("ahip","phip","mofc"),
+                        labels = c("Ant. HIP", "Post. HIP", "VMPFC"))
+
+facat_sub %>% 
+  ggplot(aes(x = rep_str, y = catACCnew, color = rep_type)) +
+  geom_point(alpha = .8) +
+  stat_smooth(geom = "line", se = FALSE, alpha = .3, method = "lm",
+              size = 1) +
+  geom_smooth(data = filter(facat_sub, roi == "VMPFC" & rep_type == "itemrep2"),
+              se = FALSE, method = "lm", size = 1) +
+  facet_wrap(~roi) +
+  theme_minimal(base_size = 16) +
+  labs(x = "Strength of Representation \n(Cohen's D)",
+       y = "Categorization Accuracy \n(new faces)",
+       caption = "Figure 3. Item representations in the VMPFC predict category generalization") +
+  scale_color_paletteer_d(package = "rcartocolor", palette = "Vivid",
+                         name = NULL, labels = c("Category Rep.", "Item Rep.")) +
+  theme(legend.position = "bottom",
+        plot.caption = element_text(hjust = -.3, size = 14),
+        axis.text = element_text(color = "black"))
+```
+
+#### Version 2: Betas
+
+```{r fig3_v2_data, include=FALSE}
+cat_regress <- lm(data = facat, 
+                  catACCnew ~ ahip_train_itemrep2 + ahip_train_catrep +
+                    phip_train_itemrep2 + phip_train_catrep +
+                    mofc_train_itemrep2 + mofc_train_catrep)
+
+summary(cat_regress)
+
+mdl <- broom::tidy(cat_regress) %>% 
+  mutate(ci_lower = estimate - (1.96)*std.error,
+         ci_upper = estimate + (1.96)*std.error) %>% 
+  filter(term != "(Intercept)")
+
+mdl$term <- factor(mdl$term, levels = c("ahip_train_itemrep2", "ahip_train_catrep",
+                                        "phip_train_itemrep2", "phip_train_catrep",
+                                        "mofc_train_itemrep2", "mofc_train_catrep"))  
+```
+
+```{r fig3_v2}
+
+term_color <- ifelse(mdl$p.value < .05, "#15C18C", "#6E6E6E") 
+
+ggplot(mdl, aes(x = term, y = estimate)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = .2,
+                alpha = .9, color = "#6E6E6E") +
+  geom_point(alpha = .8, color = "#6E6E6E") +
+  geom_errorbar(data = filter(mdl, term == "mofc_train_itemrep2"),
+                aes(ymin = ci_lower, ymax = ci_upper), 
+                width = .2, color = "#15C18C") +
+  geom_point(data = filter(mdl, term == "mofc_train_itemrep2"), 
+             color = "#15C18C") +
+  coord_flip() +
+  theme_minimal(base_size = 14) +
+  labs(x = NULL, y = "Beta Estimate",
+       caption = "Figure 3. Item representations in the VMPFC predict category generalization") +
+  scale_x_discrete(limits = rev(levels(mdl$term)),
+                   labels = c("VMPFC Cat Rep.", "VMPFC Item Rep.",
+                              "Post. HIP Cat Rep.", "Post. HIP Item Rep.",
+                              "Ant. HIP Cat Rep.", "Ant. HIP Item Rep.")) +
+  theme(axis.text.y = element_text(color = rev(term_color)),
+        plot.caption = element_text(hjust = 1.5, size = 14))
+
+```
+
+
+### Figure 4. Category Learning Model Fits
+
++ Data: DICAT 
++ Figure: Bar plot showing the average correlation between the model fits (exemplar v. prototype) and activity in each brain region. 
++ Features: scale color by each strategy (prototype v. exemplar), could highlight just prototype 
++ Message: Neural activity in certain brain regions track the type of strategy people use to make category judgements of new items.
++ Notes: I feel like this is incredibly similar to my figure 1. As I was creating the plots it kind of jumped out at me how I should present this (incidental v. feedback-based category learning). I'm thinking I might actually combine this figure with figure 1 to compare the results from two different tasks. 
+
+```{r dicat}
+dicat <- dicat %>% 
+  select(subnum, contains("avg"))
+
+dicat_tidy <- dicat %>% 
+  gather(key = "tmp", value = "mbeta", -subnum) %>%
+  separate(col = "tmp", into = c("mdl_fit","roi",NA))
+
+dicat_sum <- groupsum(dicat_tidy, y = mbeta, g1 = mdl_fit, g2 = roi)
+```
+
+```{r dicat_stats, include=FALSE}
+nvar <- length(dicat) - 1
+
+test_betas <- list()
+for (i in 1:nvar) {
+  test_betas[[i]] <- t.test(dicat[i+1])
+  test_betas[[i]]$data.name <- colnames(dicat)[i+1]
+}
+```
+
+```{r fig4_v1}
+
+ggplot(dicat_sum, aes(x = roi, y = mean, fill = mdl_fit)) +
+  geom_hline(yintercept = 0, color = "#343434", alpha = .9) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_errorbar(aes(ymin = mean-se, ymax = mean+se),
+                position = position_dodge(width = .9), 
+                width = .2, color = "#343434") +
+  scale_fill_OkabeIto(name = NULL,
+                      labels = c("Exemplar Fits", "Prototype Fits")) +
+  labs(y = "Parameter Estimates", x = NULL) +
+  scale_x_discrete(labels = c("Ant. HIP", "VMPFC", "Post. HIP")) +
+  theme_minimal(base_size = 16) +
+  theme(legend.justification = "top")
+  
+```
+
+```{r fig4_v2, include=FALSE}
+ggplot(dicat_tidy, aes(x = roi, y = mbeta, color = mdl_fit, fill = mdl_fit)) +
+  geom_bar(stat = "summary", fun.y = "mean", position = "dodge", alpha = .4) +
+  geom_point(aes(x = roi, y = mbeta, color = mdl_fit),
+    alpha = .5, position = position_dodge(width = .9)) +
+  theme_minimal()
+
+ggplot(dicat_tidy, aes(x = mdl_fit, y = mbeta, group = subnum, color = roi)) +
+  geom_point() +
+  geom_line(alpha = .5) +
+  facet_wrap(~roi)
+```
+
+
+### Figure 5. Categorization Strategy
+
+I have nothing interesting to show here yet, still playing around with the data and running analyses. 
+
+
+```{r aepet}
+aepet <- aepet
+
+mdl_sum <- groupsum(aepet, y = PET_g, g1 = PET_cat_isprot)
+mdl_sum$PET_cat_isprot <- factor(mdl_sum$PET_cat_isprot, 
+                                 labels = c("exemplarist","prototypist"))
+
+ggplot(mdl_sum, aes(x = PET_cat_isprot, y = mean, fill = PET_cat_isprot)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = mean-se, ymax = mean+se), width = .2) +
+  labs(x = "Dominant Categorization Strategy",
+       y = "Mean Categorization Accuracy \n(new stimuli only)") +
+  scale_fill_hc(guide = "none") +
+  theme_minimal(base_size = 16)
+```
+
+```{r, include=FALSE}
+mdl <- lm(data = aepet, PET_g ~ PET_cat_exfit + PET_cat_protfit)
+summary(mdl)
+
+cor.test(aepet$PET_g, aepet$PET_cat_protadv)
+cor.test(aepet$PET_g, aepet$PET_s)
+cor.test(aepet$PET_g, aepet$MOT_s)
+```
+
+```{r}
+aepet %>% 
+  ggplot(aes(x = PET_cat_protadv, y = PET_g)) +
+  geom_point(alpha = .3) +
+  geom_smooth(method = "lm", color = "#15C18C") +
+  theme_minimal() +
+  labs(x = "Prototype Advantage \n(i.e. prototype model fit better)",
+       y = "Category Generalization Accuracy")
+```
+
+
