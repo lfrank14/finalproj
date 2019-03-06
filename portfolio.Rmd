@@ -17,8 +17,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # I created a package that includes the data, in order to access you'll need to 
 # install the package using the commented code below. 
-#devtools::install("lurrdataviz")
-
+# devtools::install_github("lfrank14/lurrdatviz")
+# install.packages(c("ggthemes", "paletteer"))
 library(lurrdatviz)
 library(tidyverse)
 library(ggthemes)
@@ -94,7 +94,7 @@ sig_reps <- tibble(condition = collabels,
 
 ggplot(facat_sum, aes(x = factor(roi, levels = c("ahip","phip","mofc")), 
                       y = m_repstr, fill = factor(rep_type, levels = c("itemrep2","catrep")))) +
-  geom_bar(stat = "identity", position = "dodge") +
+  geom_bar(stat = "identity", position = "dodge", color = "white") +
   geom_hline(yintercept = 0, color = "#343434", alpha = .5) +
   geom_errorbar(aes(ymin = m_repstr - se_repstr, ymax = m_repstr + se_repstr),
                  position = position_dodge(width = .9), width = .2, color = "#343434") +
@@ -105,7 +105,8 @@ ggplot(facat_sum, aes(x = factor(roi, levels = c("ahip","phip","mofc")),
                          name = NULL, labels = c("Item", "Category")) +
   labs(y = "Cohen's d",
        x = NULL,
-       caption = "Figure 1. Strength of item and category representations during training") +
+       title = "Strength of item and category representations during training",
+       caption = "Ant.HIP = Anterior Hippocampus, Post.HIP = Posterior Hippocampus, VMPFC = Ventromedial Prefrontal Cortex") +
   scale_x_discrete(labels = c("Ant. HIP", "Post. HIP", "VMPFC")) +
   scale_y_continuous(limits = c(-.015,.035)) +
   theme(panel.grid.major.x = element_blank(),
@@ -118,6 +119,10 @@ ggplot(facat_sum, aes(x = factor(roi, levels = c("ahip","phip","mofc")),
         axis.text.y = element_text(color = "black"),
         plot.caption = element_text(hjust = -1)) +
   annotate(geom = "text", label = "*", x = .78, y = .03, size = 10)
+
+  # jtools::theme_apa()
+
+# The only thing I could think of was to add color = "white" to your geom_bar line. This will add the white outline between item and category for the VMPFC. It appears that this may be something that you would use for a publication so I added the jtools package at the bottom. This pretty much creates a figure that you can include in an APA journal. I think that what you had for the caption fit better as a title, so I changed that and included a caption for the regions of the brain instead. Overall, I think this is a great simple understandable plot for a paper. The significance asterisk is a nice touch and I like the colors. The error bars are a nice touch and make for an appropriate display of uncertainty. -JP
 
 ```
 
@@ -150,6 +155,38 @@ ggplot(facat_sum, aes(x = factor(rep_type, levels = c("itemrep2","catrep")),
         plot.caption = element_text(hjust = -.35),
         axis.text.x = element_blank(),
         axis.text.y = element_text(color = "black")) 
+
+# JP's recommendation
+facat_annotate <- data.frame(rep_type = "itemrep2", m_repstr = .03, lab = "*", roi = factor(1, levels = c("ahip","phip","mofc")))
+
+ggplot(facat_sum, aes(x = factor(rep_type, levels = c("itemrep2","catrep")), 
+                      y = m_repstr, 
+                      color = factor(rep_type, levels = c("itemrep2","catrep")))) +
+  geom_point(stat = "identity", size = 3) +
+  geom_hline(yintercept = 0, color = "#343434", alpha = .5) +
+  geom_errorbar(aes(ymin = m_repstr - se_repstr, ymax = m_repstr + se_repstr, color = rep_type),
+                width = .2) +
+  facet_wrap(~roi) +
+  scale_color_paletteer_d(package = "rcartocolor", palette = "Vivid",
+                         name = NULL, labels = c("Item", "Category")) +
+  scale_y_continuous(limits = c(-.015, .035)) +
+  geom_text(data = facat_annotate, label = "*") +
+  theme_minimal(base_size = 16) +
+  labs(y = "Cohen's d", x = " ",
+       caption = "Figure 1. Strength of item and category representations") +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.major.y = element_line(size = .3),
+        panel.grid.minor.y = element_line(size = .3),
+        legend.position = "none",
+        plot.caption = element_text(hjust = -.35),
+        axis.text.x = element_blank(),
+        axis.text.y = element_text(color = "black"))
+
+# So here is my recommendation for this plot. I think your plot may look good with points rather than boxes so I tried to change it to points. I think it looks good but it might just be personal preference here. I also tried to put the asterisk only for the Ant HIP roi plot but for some reason I could only get it to show up on an additional NA group. I have included a link below that shows various ways of people putting a single point. It appears that you have to create a data frame and include the coordinates for where you would want the point to show up. I got that far but I couldn't get it to show up on the right faceted plot.-JP
+
+# https://stackoverflow.com/questions/11889625/annotating-text-on-individual-facet-in-ggplot2
+
+
 ```
 
 ### Figure 2. Behavioral Measures
@@ -183,8 +220,7 @@ ggplot(zbehav_corrmat_lwr,
        aes(x = Var1, y = Var2, fill = value)) +
   geom_tile(color = "white", alpha = .9) +
   geom_text(aes(label = round(value,2)), size = 4) +
-  scale_fill_gradient2(low = "#00836B", mid = "white", high = "#CC7400",
-                       name = "Pearson \nCorrelation") +
+  scale_fill_gradientn(colors = c("#088200", "#00823d", "#00836B", "white", "#CC7400", "#cc9900", "#ccb400"), values = scales::rescale(c(-.5, -.3, -.1, 0, .1, .3, .5)), name = "Pearson \nCorrelation") +
   coord_fixed() +
   scale_y_discrete(labels = c("Categorization", "Perceptual Similarity", "False Alarms",
                               "Corrected Hit Rate", "First Name", "Surname")) +
@@ -197,7 +233,7 @@ ggplot(zbehav_corrmat_lwr,
         legend.justification = "top", 
         plot.caption = element_text(hjust = 1.4, size = 14))
   
-  
+# I really enjoyed this plot for its use in examining correlations between variables. The only thing I changed and you are more than welcome to change it back is to have the colors represent effect sizes for correlations at .1, .3, and .5. Other than that, I liked this plot and think that it does an excellent job at showing how correlated some of your variables are. I was trying to get the scale to change on the side to where it would show exactly where the colors changed but I couldn't figure it out. Other than that, I like this plot. I did extend the colors from the original html color codes you had so I apologize for including uglier colors for the extreme values. -JP
 
 ```
 
@@ -261,21 +297,28 @@ facat_sub$roi <- factor(facat_sub$roi, levels = c("ahip","phip","mofc"),
 
 facat_sub %>% 
   ggplot(aes(x = rep_str, y = catACCnew, color = rep_type)) +
-  geom_point(alpha = .8) +
+  geom_jitter(alpha = .8) +
   stat_smooth(geom = "line", se = FALSE, alpha = .3, method = "lm",
               size = 1) +
   geom_smooth(data = filter(facat_sub, roi == "VMPFC" & rep_type == "itemrep2"),
               se = FALSE, method = "lm", size = 1) +
+  # stat_smooth(data = filter(facat_sub, roi == "VMPFC" & rep_type == "itemrep2"),
+  # color = "gray70", method = "lm", se = FALSE,
+  #             formula = y ~ x + I(x^2)) +
   facet_wrap(~roi) +
   theme_minimal(base_size = 16) +
   labs(x = "Strength of Representation \n(Cohen's D)",
        y = "Categorization Accuracy \n(new faces)",
-       caption = "Figure 3. Item representations in the VMPFC predict category generalization") +
+       title = "Item representations in the VMPFC predict category generalization",
+       caption = "Ant.HIP = Anterior Hippocampus \n Post.HIP = Posterior Hippocampus \n VMPFC = Ventromedial Prefrontal Cortex") +
   scale_color_paletteer_d(package = "rcartocolor", palette = "Vivid",
                          name = NULL, labels = c("Category Rep.", "Item Rep.")) +
   theme(legend.position = "bottom",
         plot.caption = element_text(hjust = -.3, size = 14),
         axis.text = element_text(color = "black"))
+
+# I really like that using \n adds a space to the labs sections. I think this is great for when you want to include something in quotations like you have. In regard to the plots, I didn't think I could add any areas for improvement here. I did just change your points to jitter and I also added and commented out a way to look at quadratic associations. I know it doesn't help here much but I thought it might be helpful in the future. I do like how you used the alpha for stat_smooth lines so the audience's attention is focused on the last plot's line. I still do enjoy these colors. While I'm not sure if they are color blindness friendly, I think they would show up in presentations nicely or in a paper. -JP
+
 ```
 
 #### Version 2: Betas
@@ -303,10 +346,10 @@ mdl$term <- factor(mdl$term, levels = c("ahip_train_itemrep2", "ahip_train_catre
 term_color <- ifelse(mdl$p.value < .05, "#15C18C", "#6E6E6E") 
 
 ggplot(mdl, aes(x = term, y = estimate)) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
+  geom_hline(yintercept = 0, linetype = "dotdash", color = "gray", size = 1) +
   geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = .2,
                 alpha = .9, color = "#6E6E6E") +
-  geom_point(alpha = .8, color = "#6E6E6E") +
+  geom_point(alpha = .8, color = "black") +
   geom_errorbar(data = filter(mdl, term == "mofc_train_itemrep2"),
                 aes(ymin = ci_lower, ymax = ci_upper), 
                 width = .2, color = "#15C18C") +
@@ -323,6 +366,7 @@ ggplot(mdl, aes(x = term, y = estimate)) +
   theme(axis.text.y = element_text(color = rev(term_color)),
         plot.caption = element_text(hjust = 1.5, size = 14))
 
+# I enjoy the attention drawn to this graph through the use of color. An alternative could also be to use the gghighlight package that was taught in class but I assume it would get the same outcome. I do like the use of the horizontal line because I think it does an excellent job of drawing the audience's attention to the center of the plot. The only changes I made were from the dashed line to a dotdash line as I feel like it easier to see. I also changed the color of your points because I think it's a little easier for the audience to see the point for "Ant. HIP Item Rep." since it was close to the horizontal line and made it harder to distinguish them apart since all the colors are similar. Other than that, similar to all the other plots, I think this one does an excellent job at disseminating your findings. 
 ```
 
 
@@ -359,16 +403,18 @@ for (i in 1:nvar) {
 
 ggplot(dicat_sum, aes(x = roi, y = mean, fill = mdl_fit)) +
   geom_hline(yintercept = 0, color = "#343434", alpha = .9) +
-  geom_bar(stat = "identity", position = "dodge") +
+  geom_bar(stat = "identity", position = "dodge", color = "white") +
   geom_errorbar(aes(ymin = mean-se, ymax = mean+se),
                 position = position_dodge(width = .9), 
                 width = .2, color = "#343434") +
   scale_fill_OkabeIto(name = NULL,
                       labels = c("Exemplar Fits", "Prototype Fits")) +
   labs(y = "Parameter Estimates", x = NULL) +
-  scale_x_discrete(labels = c("Ant. HIP", "VMPFC", "Post. HIP")) +
+  scale_x_discrete(labels = c("Ant. HIP", "Post. HIP", "VMPFC")) +
   theme_minimal(base_size = 16) +
   theme(legend.justification = "top")
+
+# While similar I think this plot is just as interesting. I think it is stronger on its own but its up to you. The only change I made was putting the order of the regions of the brain in the same order as all your other plots. It might make your audience think the differences lie in the Post. HIP at first glance since that has been the order of all your other plots. Other than that, I like this one. -JP
   
 ```
 
@@ -398,13 +444,16 @@ mdl_sum <- groupsum(aepet, y = PET_g, g1 = PET_cat_isprot)
 mdl_sum$PET_cat_isprot <- factor(mdl_sum$PET_cat_isprot, 
                                  labels = c("exemplarist","prototypist"))
 
-ggplot(mdl_sum, aes(x = PET_cat_isprot, y = mean, fill = PET_cat_isprot)) +
-  geom_bar(stat = "identity") +
+ggplot(mdl_sum, aes(x = PET_cat_isprot, y = mean, color = PET_cat_isprot)) +
+  geom_point(stat = "identity") +
   geom_errorbar(aes(ymin = mean-se, ymax = mean+se), width = .2) +
   labs(x = "Dominant Categorization Strategy",
        y = "Mean Categorization Accuracy \n(new stimuli only)") +
   scale_fill_hc(guide = "none") +
-  theme_minimal(base_size = 16)
+  theme_minimal(base_size = 16) + 
+  coord_flip()
+
+# Similar to the other plot, I think it is possible to include this information as points rather than bar graphs. I think this is better at disseminating your findings as the bar plots were huge and taking up a large section of the plot without truly showing the differences between the two categories. I also just added a coord_flip() because I like seeing plots sideways. -JP
 ```
 
 ```{r, include=FALSE}
@@ -419,11 +468,15 @@ cor.test(aepet$PET_g, aepet$MOT_s)
 ```{r}
 aepet %>% 
   ggplot(aes(x = PET_cat_protadv, y = PET_g)) +
-  geom_point(alpha = .3) +
+  geom_jitter(alpha = .3) +
+  stat_smooth(color = "gray50", method = "lm", 
+              se = FALSE, formula = y ~ x + I(x^2)) +
   geom_smooth(method = "lm", color = "#15C18C") +
   theme_minimal() +
   labs(x = "Prototype Advantage \n(i.e. prototype model fit better)",
        y = "Category Generalization Accuracy")
+
+# Since this is in regard to model fits, I think it might be helpful to include curvilinear fits. I'm not sure about neuro-related research and looking at curvilinear associations but I think it is interesting if there is a theroetical basis for investigating if a model is curvilinear. Other than that, I think this is a great plot and a good addition to everything else that you included in this file. Great work and look forward to your blog/website for this project. -JP
 ```
 
 
