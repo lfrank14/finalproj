@@ -17,8 +17,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # I created a package that includes the data, in order to access you'll need to 
 # install the package using the commented code below. 
-#devtools::install("lurrdataviz")
-
+# devtools::install("lurrdataviz")
+# install.packages("lurrdataviz")
 library(lurrdatviz)
 library(tidyverse)
 library(ggthemes)
@@ -42,7 +42,7 @@ I have run some statistics on the data to communicate significant findings, but 
 
 + Data: FACAT 
 + Figure: Bar plot showing mean strength of item and category representations across different brain regions. 
-+ Message: To show that during an incidental category learning, item representations are stronger that category representations.  
++ Message: To show that during an incidental category learning, item representations are stronger that category representations. I suggest you use some version of this text as a plot title. -MSC 
 + Audience: NIH study section
 + Notes: We only really care about the strength of each type of representation as it compares to 0. The strength of representation is measured by an effect size, Cohen's d. 
 
@@ -306,7 +306,7 @@ ggplot(mdl, aes(x = term, y = estimate)) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
   geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = .2,
                 alpha = .9, color = "#6E6E6E") +
-  geom_point(alpha = .8, color = "#6E6E6E") +
+  geom_point( color = "#6E6E6E", size = 5) + #added bigger point to draw the eye; don't know how to make the colors align
   geom_errorbar(data = filter(mdl, term == "mofc_train_itemrep2"),
                 aes(ymin = ci_lower, ymax = ci_upper), 
                 width = .2, color = "#15C18C") +
